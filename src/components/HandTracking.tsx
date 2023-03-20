@@ -6,23 +6,21 @@ export const HandTracking = () => {
 
   return (
     <div className="relative w-full h-full">
-      <div className="relative w-fit">
+      <div className="relative w-fit h-fit">
         <video
           ref={videoRef}
-          className="opacity-30 absolute "
+          className="opacity-30  "
           style={{
             transform: "rotateY(180deg)",
           }}
         ></video>
         <canvas
           ref={canvasRef}
-          width="1280px"
-          height="720px"
-          className="border border-red-500"
+          className="border top-0 left-0 absolute border-red-500 w-full h-full"
         ></canvas>
         <div
           ref={signatureLimitsRef}
-          className="absolute top-2/4 left-2/4 w-2/5 h-72 border-[3px] border-blue-400 border-dashed"
+          className="absolute top-2/4 left-2/4 md:w-2/5 w-3/4 h-72 border-[3px] border-blue-400 border-dashed"
           style={{
             transform: "translate(-50%,-50%)",
           }}

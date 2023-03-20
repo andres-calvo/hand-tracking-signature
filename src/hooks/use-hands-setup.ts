@@ -36,6 +36,7 @@ export const useHandsSetup = () => {
       modelComplexity: 1,
       minDetectionConfidence: 0.55,
       minTrackingConfidence: 0.55,
+      selfieMode: true,
     });
     hands.onResults(onResults);
 
@@ -47,15 +48,13 @@ export const useHandsSetup = () => {
       height: 720,
       facingMode: "user",
     });
-    camera.start();
+    return camera.start();
   };
 
   useEffect(() => {
-    
     if (isReady.current || typeof window === "undefined") return;
     const videoElement = videoRef.current as HTMLVideoElement;
     const signatureLimit = signatureLimitsRef.current as HTMLDivElement;
-    const signatureBounding = signatureLimit.getBoundingClientRect();
 
     setupStats(document.body);
 
@@ -64,32 +63,40 @@ export const useHandsSetup = () => {
         clearCanvas();
       }
     });
-
-    const pointsAvg = new PointsAvg(3, setupDraw(signatureBounding));
-
-    const onResults = (results: Results) => {
-      fpsStats?.begin();
-      
-      if (results.multiHandLandmarks) {
-        for (const landmarks of results.multiHandLandmarks) {
-          const thumbResult = landmarks[THUMB_TIP];
-          const indexFingerResult = landmarks[INDEX_FINGER_TIP];
-          const distance = distanceBetweenTwo3dPoints(
-            thumbResult,
-            indexFingerResult
-          );
-          if (distance > FINGERS_DISTANCE_THRESHOLD) {
-            closePath();
-            return;
-          }
-          pointsAvg.onResult(indexFingerResult);
+    const setupTracking = async () => {
+      let pointsAvg: PointsAvg | null = null;
+      const onResults = (results: Results) => {
+        fpsStats?.begin();
+        if (!pointsAvg) {
+          const isMobile = window.innerWidth < 1280
+          const numPointsToAverage= isMobile ? 2 :3
+          pointsAvg = new PointsAvg(numPointsToAverage, setupDraw(signatureLimit, videoElement));
         }
-      }
-      fpsStats?.end();
+        if (results.multiHandLandmarks) {
+          for (const landmarks of results.multiHandLandmarks) {
+            const thumbResult = landmarks[THUMB_TIP];
+            const indexFingerResult = landmarks[INDEX_FINGER_TIP];
+            const distance = distanceBetweenTwo3dPoints(
+              thumbResult,
+              indexFingerResult
+            );
+            if (distance > FINGERS_DISTANCE_THRESHOLD) {
+              closePath();
+              return;
+            }
+            pointsAvg?.onResult(indexFingerResult);
+          }
+        }
+        fpsStats?.end();
+      };
+      await setupHands(onResults, videoElement);
+      const stream = videoElement.srcObject as MediaStream;
+      const height = stream.getVideoTracks()[0].getSettings().height;
+      const width = stream.getVideoTracks()[0].getSettings().width;
+      canvasRef.current?.setAttribute("width", `${width}px`);
+      canvasRef.current?.setAttribute("height", `${height}px`);
     };
-
-    setupHands(onResults, videoElement);
-
+    setupTracking();
     isReady.current = true;
   }, []);
 

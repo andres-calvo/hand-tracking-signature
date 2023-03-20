@@ -22,33 +22,32 @@ export const useCanvas = () => {
     canvasCtx.beginPath();
   };
 
-  const setupDraw = (signatureBounding: DOMRect) => {
+  const setupDraw = (
+    signatureElement: HTMLDivElement,
+    videoElement: HTMLVideoElement
+  ) => {
     const canvasElement = canvasRef.current as HTMLCanvasElement;
     const canvasCtx = canvasElement.getContext(
       "2d"
     ) as CanvasRenderingContext2D;
 
-    const canvasBounding = canvasElement.getBoundingClientRect();
-    const canvasWidth = canvasBounding.width;
-    const canvasHeight = canvasBounding.height;
+    const videoWidth = videoElement.videoWidth;
+    const videoHeight = videoElement.videoHeight;
+    const signatureBounding = signatureElement.getBoundingClientRect();
+    const {leftLimit,topLimit,rightLimit,bottomLimit} = getLimits(videoElement,signatureBounding)
 
     const draw = ({ x, y, z }: Point) => {
-      // if (x < 0 || x > 1 || y < 0 || y > 1) {
-      //   return;
-      // }
-      const drawX = Math.round(canvasWidth * (1 - x));
-      const drawY = Math.round(canvasHeight * y);
-      const outsideOfHorizontalLimits =
-        drawX < signatureBounding.left || drawX > signatureBounding.right;
-
-      const outsideOfVerticalLimits =
-        drawY < signatureBounding.top || drawY > signatureBounding.bottom;
+      const drawX = Math.round(videoWidth * x);
+      const drawY = Math.round(videoHeight * y);
+      const outsideOfHorizontalLimits = drawX < leftLimit || drawX > rightLimit;
+      const outsideOfVerticalLimits = drawY < topLimit || drawY > bottomLimit;
 
       if (outsideOfHorizontalLimits || outsideOfVerticalLimits) {
         canvasCtx.stroke();
         canvasCtx.beginPath();
         return;
       }
+      if (drawX < 0 || drawY < 0) return;
       canvasCtx.lineWidth = 5;
       canvasCtx.lineCap = "round";
 
@@ -58,5 +57,33 @@ export const useCanvas = () => {
     return draw;
   };
 
-  return { canvasRef, setupDraw, clearCanvas,closePath };
+  return { canvasRef, setupDraw, clearCanvas, closePath };
+};
+
+const getLimits = (
+  videoElement: HTMLVideoElement,
+  signatureBounding: DOMRect
+) => {
+  const isMobile = window.innerWidth < 1280;
+  const videoWidth = videoElement.videoWidth;
+  const videoHeight = videoElement.videoHeight;
+  if (isMobile) {
+    const leftLimit = videoWidth * 0.125;
+    const rightLimit = videoWidth * (0.875);
+    const topLimit =
+      (videoHeight - (videoHeight * signatureBounding.height) / videoWidth) / 2;
+    const bottomLimit = videoHeight - topLimit;
+    return {
+      topLimit,
+      leftLimit,
+      bottomLimit,
+      rightLimit,
+    };
+  }
+  return {
+    topLimit: signatureBounding.top,
+    leftLimit: signatureBounding.left,
+    bottomLimit: signatureBounding.bottom,
+    rightLimit: signatureBounding.right,
+  };
 };
